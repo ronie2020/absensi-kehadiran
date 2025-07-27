@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Absensi Kegiatan Keagamaan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .activity-btn.active { background-color: #16a34a; color: white; border-color: #16a34a; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="dashboard-page">
+        <header class="bg-white shadow-sm">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row items-center justify-between py-4 md:h-16 gap-4">
+                    <div class="flex items-center justify-between h-16">
+                        <div class="flex items-center gap-4">
+                            <a href="./index.html" class="text-blue-600 hover:underline">&larr; Kembali ke Dashboard</a>
+                            <h1 class="text-xl font-bold text-gray-800">Absensi Keagamaan</h1>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="text-right mr-4">
+                                <p id="user-name" class="text-sm font-medium text-gray-800">Nama Pengguna</p>
+                                <p id="user-role" class="text-xs font-bold text-blue-500 uppercase">Role</p>
+                            </div>
+                            <button id="logout-btn" class="px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700">Logout</button>
+                        </div>
+                    </div>
+                </div>               
+            </div>
+        </header>
+
+        <main class="container mx-auto p-4 md:p-8">
+            <div class="flex flex-col lg:flex-row gap-8">
+                <!-- Kolom Kiri: Scanner & Log -->
+                <div class="w-full lg:w-1/2 bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4 text-center">Pilih Kegiatan & Pindai</h2>
+                    <div class="flex justify-center gap-4 mb-4">
+                        <!-- Perbaikan Teks Tombol -->
+                        <button id="activity-dhuha" class="activity-btn py-2 px-5 border-2 border-gray-300 rounded-full font-semibold">Sholat Dhuha</button>
+                        <button id="activity-dhuhur" class="activity-btn py-2 px-5 border-2 border-gray-300 rounded-full font-semibold">Sholat Dhuhur</button>
+                    </div>
+                    <div id="reader-keagamaan"></div>
+                    <div id="scan-result-keagamaan" class="mt-4 text-center font-medium"></div>
+                    <hr class="my-6">
+                    <h3 class="text-xl font-semibold mb-4">Log Absen Keagamaan Hari Ini</h3>
+                    <div id="log-keagamaan" class="space-y-3 h-64 overflow-y-auto pr-2"><p class="text-gray-500">Pilih kegiatan untuk melihat log.</p></div>
+                </div>
+                <!-- Kolom Kanan: Rekap -->
+                <div class="w-full lg:w-1/2 bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4">Rekap Absensi Keagamaan</h2>
+                    <div class="flex items-center flex-wrap gap-4">
+                        <div>
+                            <label for="report-date-input" class="text-sm font-medium">Pilih Tanggal:</label>
+                            <input type="date" id="report-date-input" class="border rounded px-2 py-1 mt-1">
+                        </div>
+                        <button id="show-religious-report-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg self-end">Tampilkan Rekap</button>
+                    </div>
+                    <div class="mt-6">
+                        <button id="export-religious-csv-btn" class="hidden bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg mb-4">Ekspor ke CSV</button>
+                        <div id="religious-report-results" class="overflow-x-auto h-96">
+                            <p class="text-gray-500">Pilih kegiatan di sebelah kiri dan tanggal di atas, lalu klik "Tampilkan Rekap".</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script type="module">
+        // PERBAIKAN DI SINI: Menambahkan 'getDocs'
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, doc, getDoc, onSnapshot, setDoc, query, where, Timestamp, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBVHH_93naVVAbPgW1eNqUVdiKGTEo2lVE",
+            authDomain: "sistem-kehadiran-sekolah.firebaseapp.com",
+            projectId: "sistem-kehadiran-sekolah",
+            storageBucket: "sistem-kehadiran-sekolah.firebasestorage.app",
+            messagingSenderId: "442792334277",
+            appId: "1:442792334277:web:fc4b5305495af6458931ac",
+            measurementId: "G-4WKLJS974P"
+        };
+
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let currentUserData = null;
+        let html5QrcodeScanner;
+        let isProcessingScan = false;
+        let currentReligiousActivity = null;
+        let currentReligiousReportData = [];
+
+        const activityDhuhaBtn = document.getElementById('activity-dhuha');
+        const activityDhuhurBtn = document.getElementById('activity-dhuhur');
+        const logContainer = document.getElementById('log-keagamaan');
+        const showReportBtn = document.getElementById('show-religious-report-btn');
+        const exportCsvBtn = document.getElementById('export-religious-csv-btn');
+        const reportResultsContainer = document.getElementById('religious-report-results');
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userDocRef = doc(db, "users", user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    currentUserData = userDocSnap.data();
+                    document.getElementById('user-name').textContent = currentUserData.name || user.email;
+                    document.getElementById('user-role').textContent = currentUserData.role;
+                    
+                    if (!html5QrcodeScanner) {
+                        html5QrcodeScanner = new Html5Qrcode("reader-keagamaan");
+                        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+                        html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
+                    }
+                } else {
+                    window.location.href = './index.html';
+                }
+            } else {
+                window.location.href = './index.html';
+            }
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+
+        const selectActivity = (activityName) => {
+            currentReligiousActivity = activityName;
+            activityDhuhaBtn.classList.toggle('active', activityName === 'Sholat Dhuha');
+            activityDhuhurBtn.classList.toggle('active', activityName === 'Sholat Dhuhur');
+            renderReligiousActivityLog();
+        };
+
+        activityDhuhaBtn.addEventListener('click', () => selectActivity('Sholat Dhuha'));
+        activityDhuhurBtn.addEventListener('click', () => selectActivity('Sholat Dhuhur'));
+
+        async function onScanSuccess(decodedText) {
+            if (isProcessingScan) return;
+            isProcessingScan = true;
+
+            const resultDiv = document.getElementById('scan-result-keagamaan');
+            if (!currentReligiousActivity) {
+                resultDiv.textContent = "Pilih kegiatan (Dhuha/Dhuhur) terlebih dahulu!";
+                resultDiv.className = 'mt-4 text-center font-medium text-red-500';
+                isProcessingScan = false;
+                return;
+            }
+            
+            resultDiv.textContent = `Memproses ID: ${decodedText} untuk ${currentReligiousActivity}...`;
+            
+            try {
+                const studentRef = doc(db, "students", decodedText);
+                const studentSnap = await getDoc(studentRef);
+                if (!studentSnap.exists()) {
+                    resultDiv.textContent = `Error: Siswa dengan ID ${decodedText} tidak ditemukan.`;
+                    resultDiv.className = 'mt-4 text-center font-medium text-red-500';
+                    return;
+                }
+                const studentData = studentSnap.data();
+                
+                const today = new Date().toLocaleDateString('id-ID', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+                const activityId = `${decodedText}_${currentReligiousActivity.replace(/\s+/g, '')}_${today}`;
+                const activityRef = doc(db, "religious_activities", activityId);
+                const activitySnap = await getDoc(activityRef);
+
+                if (activitySnap.exists()) {
+                    resultDiv.textContent = `${studentData.name} sudah absen ${currentReligiousActivity} hari ini.`;
+                    resultDiv.className = 'mt-4 text-center font-medium text-yellow-500';
+                    return;
+                }
+
+                await setDoc(activityRef, {
+                    studentId: decodedText,
+                    studentName: studentData.name,
+                    classId: studentData.classId,
+                    activity: currentReligiousActivity,
+                    timestamp: Timestamp.now()
+                });
+                
+                resultDiv.textContent = `Berhasil! Absen ${currentReligiousActivity} untuk ${studentData.name} tercatat.`;
+                resultDiv.className = 'mt-4 text-center font-medium text-green-500';
+
+            } catch (error) {
+                console.error("Error saat absen keagamaan:", error);
+                resultDiv.textContent = "Terjadi kesalahan.";
+                resultDiv.className = 'mt-4 text-center font-medium text-red-500';
+            } finally {
+                setTimeout(() => { isProcessingScan = false; }, 3000);
+            }
+        }
+
+        function renderReligiousActivityLog() {
+            if (!currentReligiousActivity) return;
+
+            const today = new Date();
+            const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+            const endOfToday = new Date(today.setHours(23, 59, 59, 999));
+            
+            const q = query(collection(db, "religious_activities"), 
+                where("activity", "==", currentReligiousActivity),
+                where("timestamp", ">=", Timestamp.fromDate(startOfToday)),
+                where("timestamp", "<=", Timestamp.fromDate(endOfToday))
+            );
+
+            onSnapshot(q, (snapshot) => {
+                logContainer.innerHTML = '';
+                if (snapshot.empty) {
+                    logContainer.innerHTML = `<p class="text-gray-500">Belum ada siswa yang absen ${currentReligiousActivity} hari ini.</p>`;
+                    return;
+                }
+                
+                snapshot.docs.sort((a,b) => b.data().timestamp - a.data().timestamp).forEach(doc => {
+                    const log = doc.data();
+                    const time = log.timestamp.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    const div = document.createElement('div');
+                    div.className = 'bg-green-100 p-3 rounded-md flex justify-between items-center';
+                    div.innerHTML = `
+                        <div>
+                            <p class="font-semibold">${log.studentName}</p>
+                            <p class="text-sm text-green-700">Kelas: ${log.classId}</p>
+                        </div>
+                        <span class="font-bold text-green-800">${time}</span>
+                    `;
+                    logContainer.appendChild(div);
+                });
+            });
+        }
+
+        // --- FUNGSI BARU UNTUK REKAP KEAGAMAAN ---
+        showReportBtn.addEventListener('click', async () => {
+            const dateVal = document.getElementById('report-date-input').value;
+            if (!currentReligiousActivity) {
+                alert("Pilih kegiatan (Sholat Dhuha / Sholat Dhuhur) di sebelah kiri terlebih dahulu.");
+                return;
+            }
+            if (!dateVal) {
+                alert("Silakan pilih tanggal rekap.");
+                return;
+            }
+
+            const startDate = new Date(dateVal);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(dateVal);
+            endDate.setHours(23, 59, 59, 999);
+
+            reportResultsContainer.innerHTML = '<p class="text-gray-500">Mengambil data...</p>';
+
+            const queryConstraints = [
+                where("activity", "==", currentReligiousActivity),
+                where("timestamp", ">=", Timestamp.fromDate(startDate)),
+                where("timestamp", "<=", Timestamp.fromDate(endDate))
+            ];
+
+            if (currentUserData.role === 'wali_kelas') {
+                queryConstraints.push(where("classId", "==", currentUserData.classId));
+            }
+
+            const reportQuery = query(collection(db, "religious_activities"), ...queryConstraints);
+            const snapshot = await getDocs(reportQuery);
+
+            if (snapshot.empty) {
+                reportResultsContainer.innerHTML = `<p class="text-red-500">Tidak ada data absensi ${currentReligiousActivity} pada tanggal ini.</p>`;
+                exportCsvBtn.classList.add('hidden');
+                currentReligiousReportData = [];
+                return;
+            }
+
+            currentReligiousReportData = snapshot.docs.map(doc => doc.data()).sort((a, b) => {
+                if (a.classId < b.classId) return -1;
+                if (a.classId > b.classId) return 1;
+                if (a.studentName < b.studentName) return -1;
+                if (a.studentName > b.studentName) return 1;
+                return 0;
+            });
+
+            renderReligiousReport(currentReligiousReportData);
+        });
+
+        function renderReligiousReport(data) {
+            let tableHtml = `<table class="w-full text-sm text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-gray-100"><tr>
+                <th scope="col" class="px-6 py-3">No</th><th scope="col" class="px-6 py-3">Nama Siswa</th>
+                <th scope="col" class="px-6 py-3">Kelas</th><th scope="col" class="px-6 py-3">Waktu</th>
+                </tr></thead><tbody>`;
+            
+            data.forEach((log, index) => {
+                const time = log.timestamp.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                tableHtml += `<tr class="bg-white border-b">
+                    <td class="px-6 py-4">${index + 1}</td>
+                    <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${log.studentName}</td>
+                    <td class="px-6 py-4">${log.classId}</td>
+                    <td class="px-6 py-4 font-semibold">${time}</td></tr>`;
+            });
+
+            tableHtml += `</tbody></table>`;
+            reportResultsContainer.innerHTML = tableHtml;
+            exportCsvBtn.classList.remove('hidden');
+        }
+
+        exportCsvBtn.addEventListener('click', () => {
+            if (currentReligiousReportData.length === 0) return;
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += `No,Nama Siswa,Kelas,Waktu Absen,Kegiatan\r\n`;
+            currentReligiousReportData.forEach((log, index) => {
+                const time = log.timestamp.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                const row = [
+                    index + 1,
+                    `"${log.studentName}"`,
+                    log.classId,
+                    time,
+                    log.activity
+                ].join(",");
+                csvContent += row + "\r\n";
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `rekap_${currentReligiousActivity.replace(/\s+/g, '')}_${document.getElementById('report-date-input').value}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+    </script>
+</body>
+</html>

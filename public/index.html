@@ -49,21 +49,33 @@
 
     <!-- Halaman Dashboard -->
     <div id="dashboard-page" class="hidden">
-        <header class="bg-white shadow-sm">
+         <header class="bg-white shadow-sm">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex items-center justify-between h-16">
-                    <h1 class="text-xl font-bold text-blue-600">Dashboard Kehadiran</h1>
+                <!-- PERUBAHAN DI SINI: Membuat header responsif -->
+                <div class="flex flex-col md:flex-row items-center justify-between py-4 md:h-16 gap-4">
+                    <!-- Bagian Kiri: Judul dan Tombol Navigasi -->
+                    <div class="flex flex-col sm:flex-row items-center gap-4">
+                        <h1 class="text-xl font-bold text-blue-600 flex-shrink-0">Dashboard Utama</h1>
+                        <div class="flex items-center gap-2">
+                            <a href="./kegiatan.html" class="text-xs sm:text-sm font-medium text-white bg-green-600 px-3 py-2 rounded-md hover:bg-green-700 text-center">
+                                Absensi Keagamaan
+                            </a>
+                            <a href="./kiosk_web.html" class="text-xs sm:text-sm font-medium text-white bg-gray-800 px-3 py-2 rounded-md hover:bg-gray-700 text-center">
+                                Mode Kiosk Scanner
+                            </a>
+                        </div>
+                    </div>
+                    <!-- Bagian Kanan: Info Pengguna dan Tombol Logout -->
                     <div class="flex items-center">
                         <div class="text-right mr-4">
                             <p id="user-name" class="text-sm font-medium text-gray-800">Nama Pengguna</p>
                             <p id="user-role" class="text-xs font-bold text-blue-500 uppercase">Role</p>
                         </div>
-                        <button id="logout-btn" class="px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700">Logout</button>
+                        <button id="logout-btn" class="px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 flex-shrink-0">Logout</button>
                     </div>
                 </div>
             </div>
         </header>
-
         <main class="container mx-auto p-4 md:p-8">
             <div class="flex flex-col lg:flex-row gap-8">
                 <!-- Kolom Kiri: Scanner & Log -->
@@ -236,12 +248,31 @@
         const auth = getAuth(app);
         // const functions = getFunctions(app); // Dinonaktifkan sementara
 
-        // --- Definisikan Jadwal Absensi ---
-        const MASUK_MULAI = { H: 6, M: 15 };
-        const MASUK_AKHIR = { H: 7, M: 15 };
-        const PULANG_MULAI = { H: 14, M: 20 };
-        const PULANG_AKHIR = { H: 15, M: 0 };
-        const CHECKOUT_GRACE_TIME = { H: 11, M: 20 };
+        // --- PERUBAHAN BARU: Definisikan Jadwal Absensi ---
+        const JADWAL_DEFAULT = {
+            masukMulai: { H: 6, M: 0 }, masukAkhir: { H: 7, M: 0 },
+            pulangMulai: { H: 14, M: 0 }, pulangAkhir: { H: 15, M: 0 }
+        };
+        const JADWAL_KAMIS = {
+            masukMulai: { H: 6, M: 15 }, masukAkhir: { H: 7, M: 15 },
+            pulangMulai: { H: 14, M: 20 }, pulangAkhir: { H: 15, M: 0 }
+        };
+        const JADWAL_JUMAT = {
+            masukMulai: { H: 6, M: 15 }, masukAkhir: { H: 7, M: 15 },
+            pulangMulai: { H: 11, M: 0 }, pulangAkhir: { H: 12, M: 20 }
+        };
+        const CHECKOUT_GRACE_TIME = { H: 12, M: 0 };
+
+          function getTodaySchedule() {
+            const todayWeekday = new Date().getDay(); // Minggu=0, Senin=1, ..., Sabtu=6
+            if (todayWeekday === 4) { // Hari Kamis
+                return JADWAL_KAMIS;
+            } else if (todayWeekday === 5) { // Hari Jumat
+                return JADWAL_JUMAT;
+            } else {
+                return JADWAL_DEFAULT;
+            }
+        }
 
         // Variabel Global & Elemen UI
         let currentUserData = null;
@@ -503,25 +534,29 @@
             const resultDiv = document.getElementById('scan-result');
             resultDiv.textContent = `Memproses ID: ${decodedText}...`;
             try {
+                
+                const jadwalHariIni = getTodaySchedule();
                 const studentRef = doc(db, "students", decodedText);
                 const studentSnap = await getDoc(studentRef);
                 if (!studentSnap.exists()) {
                     resultDiv.textContent = `Error: Siswa dengan ID ${decodedText} tidak ditemukan.`; return;
                 }
                 const studentData = studentSnap.data();
+
                 const now = new Date();
                 const todayStr = now.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
                 const attendanceId = `${decodedText}_${todayStr}`;
                 const attendanceRef = doc(db, "attendance", attendanceId);
                 const attendanceSnap = await getDoc(attendanceRef);
+                
                 const masukMulai = new Date();
-                masukMulai.setHours(MASUK_MULAI.H, MASUK_MULAI.M, 0, 0);
+                masukMulai.setHours(jadwalHariIni.masukMulai.H, jadwalHariIni.masukMulai.M, 0, 0);
                 const masukAkhir = new Date();
-                masukAkhir.setHours(MASUK_AKHIR.H, MASUK_AKHIR.M, 0, 0);
+                masukAkhir.setHours(jadwalHariIni.masukAkhir.H, jadwalHariIni.masukAkhir.M, 0, 0);
                 const pulangMulai = new Date();
-                pulangMulai.setHours(PULANG_MULAI.H, PULANG_MULAI.M, 0, 0);
+                pulangMulai.setHours(jadwalHariIni.pulangMulai.H, jadwalHariIni.pulangMulai.M, 0, 0);
                 const pulangAkhir = new Date();
-                pulangAkhir.setHours(PULANG_AKHIR.H, PULANG_AKHIR.M, 0, 0);
+                pulangAkhir.setHours(jadwalHariIni.pulangAkhir.H, jadwalHariIni.pulangAkhir.M, 0, 0);
                 const checkoutGraceTime = new Date();
                 checkoutGraceTime.setHours(CHECKOUT_GRACE_TIME.H, CHECKOUT_GRACE_TIME.M, 0, 0);
 
@@ -534,20 +569,18 @@
                     if (attendanceData.checkOutTime) {
                         resultDiv.textContent = `${studentData.name} sudah absen masuk dan pulang hari ini.`; return;
                     }
-                    let status = "";
+                    let status = "Pulang";
                     if (now < pulangMulai) status = "Pulang Cepat";
                     else if (now >= pulangMulai && now <= pulangAkhir) status = "Pulang Tepat Waktu";
-                    else if (now > pulangAkhir) status = "Pulang Terlambat";
-                    else if (now >= pulangMulai && now <= pulangAkhir) status = "Pulang Tepat Waktu";
-                    else status = "Pulang";
+
                     await updateDoc(attendanceRef, { checkOutTime: Timestamp.fromDate(now), status: status });
                     resultDiv.textContent = `Berhasil! Absen PULANG (${status}) untuk ${studentData.name} tercatat.`;
                     showWaModal(studentData.name, studentData.parentWaNumber, 'pulang', status);
                 } else {
-                    let status = "";
+                    let status = "Tepat Waktu";
                     if (now < masukMulai) status = "Hadir Awal";
-                    else if (now >= masukMulai && now <= masukAkhir) status = "Tepat Waktu";
-                    else status = "Terlambat";
+                    else if (now > masukAkhir) status = "Terlambat";
+
                     await setDoc(attendanceRef, {
                         studentId: decodedText,
                         studentName: studentData.name,

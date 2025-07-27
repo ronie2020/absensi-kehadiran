@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mode Kiosk Scanner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Memuat library suara Tone.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; cursor: none; } /* Sembunyikan kursor mouse */
+    </style>
+</head>
+<body class="bg-gray-800 text-white flex items-center justify-center min-h-screen">
+
+    <!-- PERUBAHAN BARU: Overlay untuk aktivasi audio -->
+    <div id="audio-activation-overlay" class="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" style="cursor: pointer;">
+        <div class="text-center">
+            <h2 class="text-4xl font-bold">Selamat Datang</h2>
+            <p class="text-xl mt-4">Klik di mana saja untuk mengaktifkan suara dan memulai stasiun absensi.</p>
+        </div>
+    </div>
+
+    <div id="kiosk-container" class="text-center p-8">
+        <h1 id="school-name" class="text-5xl font-bold text-yellow-400">SMPN 3 LAKBOK</h1>
+        <p class="text-2xl mt-2 text-gray-300">Stasiun Absensi Scanner</p>
+
+        <div id="status-container" class="mt-12 p-10 rounded-lg bg-gray-700 shadow-lg min-h-[250px] flex flex-col justify-center items-center">
+            <p id="status-message" class="text-4xl font-semibold text-gray-200">Arahkan QR Code ke Scanner</p>
+            <p id="student-name-display" class="text-3xl font-bold mt-4"></p>
+        </div>
+        
+        <a href="./index.html" class="mt-8 inline-block text-yellow-400 hover:text-yellow-300" style="cursor: pointer;">&larr; Kembali ke Dashboard</a>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+            // Konfigurasi Firebase 
+        const firebaseConfig = {
+            apiKey: "AIzaSyBVHH_93naVVAbPgW1eNqUVdiKGTEo2lVE",
+            authDomain: "sistem-kehadiran-sekolah.firebaseapp.com",
+            projectId: "sistem-kehadiran-sekolah",
+            storageBucket: "sistem-kehadiran-sekolah.firebasestorage.app",
+            messagingSenderId: "442792334277",
+            appId: "1:442792334277:web:fc4b5305495af6458931ac",
+            measurementId: "G-4WKLJS974P"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- PERUBAHAN BARU: Definisikan Jadwal Absensi ---
+        const JADWAL_DEFAULT = {
+            masukMulai: { H: 6, M: 0 }, masukAkhir: { H: 7, M: 0 },
+            pulangMulai: { H: 14, M: 0 }, pulangAkhir: { H: 15, M: 0 }
+        };
+        const JADWAL_KAMIS = {
+            masukMulai: { H: 6, M: 15 }, masukAkhir: { H: 7, M: 15 },
+            pulangMulai: { H: 14, M: 20 }, pulangAkhir: { H: 15, M: 0 }
+        };
+        const JADWAL_JUMAT = {
+            masukMulai: { H: 6, M: 15 }, masukAkhir: { H: 7, M: 15 },
+            pulangMulai: { H: 11, M: 0 }, pulangAkhir: { H: 12, M: 20 }
+        };
+        const CHECKOUT_GRACE_TIME = { H: 12, M: 0 };
+
+        function getTodaySchedule() {
+            const todayWeekday = new Date().getDay(); // Minggu=0, Senin=1, ..., Sabtu=6
+            if (todayWeekday === 4) { // Hari Kamis
+                return JADWAL_KAMIS;
+            } else if (todayWeekday === 5) { // Hari Jumat
+                return JADWAL_JUMAT;
+            } else {
+                return JADWAL_DEFAULT;
+            }
+        }
+
+        const statusMessage = document.getElementById('status-message');
+        const studentNameDisplay = document.getElementById('student-name-display');
+        const audioOverlay = document.getElementById('audio-activation-overlay');
+        
+        // --- Membuat generator suara ---
+        const successSynth = new Tone.Synth().toDestination();
+        const errorSynth = new Tone.Synth({
+            oscillator: { type: 'square' },
+            envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.1 }
+        }).toDestination();
+        let audioStarted = false;
+
+        let isProcessingScan = false;
+        let barcodeBuffer = '';
+        let lastKeystrokeTime = Date.now();
+
+        // --- PERUBAHAN BARU: Aktivasi audio dengan klik ---
+        audioOverlay.addEventListener('click', async () => {
+            if (!audioStarted) {
+                await Tone.start();
+                audioStarted = true;
+                console.log('Audio context started!');
+                audioOverlay.classList.add('hidden'); // Sembunyikan overlay setelah diklik
+            }
+        }, { once: true }); // Hanya jalankan sekali
+
+        // --- Mendengarkan ketikan di seluruh halaman ---
+        document.addEventListener('keydown', (event) => {
+            const currentTime = Date.now();
+            
+            if (currentTime - lastKeystrokeTime > 100) {
+                barcodeBuffer = '';
+            }
+
+            if (event.key === 'Enter') {
+                if (barcodeBuffer.length > 0) {
+                    processDailyAttendance(barcodeBuffer);
+                    barcodeBuffer = ''; 
+                }
+            } else if (event.key.length === 1) {
+                barcodeBuffer += event.key;
+            }
+
+            lastKeystrokeTime = currentTime;
+        });
+
+        function showStatus(message, studentName = "", colorClass = "text-gray-200", isSuccess = true) {
+            statusMessage.textContent = message;
+            statusMessage.className = `text-4xl font-semibold ${colorClass}`;
+            studentNameDisplay.textContent = studentName;
+            
+            if (audioStarted) {
+                if (isSuccess) {
+                    successSynth.triggerAttackRelease("C5", "8n");
+                } else {
+                    errorSynth.triggerAttackRelease("C3", "8n");
+                }
+            }
+            
+            setTimeout(() => {
+                statusMessage.textContent = "Arahkan QR Code ke Scanner";
+                statusMessage.className = "text-4xl font-semibold text-gray-200";
+                studentNameDisplay.textContent = "";
+            }, 4000);
+        }
+
+        async function processDailyAttendance(studentId) {
+            if (isProcessingScan) return;
+            isProcessingScan = true;
+
+            try {
+                const jadwalHariIni = getTodaySchedule();
+                const studentRef = doc(db, "students", studentId);
+                const studentSnap = await getDoc(studentRef);
+                if (!studentSnap.exists()) {
+                    showStatus("Siswa Tidak Ditemukan", studentId, "text-red-500", false);
+                    return;
+                }
+                const studentData = studentSnap.data();
+                
+                const now = new Date();
+                const todayStr = now.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+                const attendanceId = `${studentId}_${todayStr}`;
+                const attendanceRef = doc(db, "attendance", attendanceId);
+                const attendanceSnap = await getDoc(attendanceRef);
+
+                  const masukMulai = new Date();
+                masukMulai.setHours(jadwalHariIni.masukMulai.H, jadwalHariIni.masukMulai.M, 0, 0);
+                const masukAkhir = new Date();
+                masukAkhir.setHours(jadwalHariIni.masukAkhir.H, jadwalHariIni.masukAkhir.M, 0, 0);
+                const pulangMulai = new Date();
+                pulangMulai.setHours(jadwalHariIni.pulangMulai.H, jadwalHariIni.pulangMulai.M, 0, 0);
+                const pulangAkhir = new Date();
+                pulangAkhir.setHours(jadwalHariIni.pulangAkhir.H, jadwalHariIni.pulangAkhir.M, 0, 0);
+                const checkoutGraceTime = new Date();
+                checkoutGraceTime.setHours(CHECKOUT_GRACE_TIME.H, CHECKOUT_GRACE_TIME.M, 0, 0);
+
+
+                if (attendanceSnap.exists()) {
+                    if (now < checkoutGraceTime) {
+                        showStatus("Sudah Absen Masuk", studentData.name, "text-blue-400", true);
+                        return;
+                    }
+                    
+                    const attendanceData = attendanceSnap.data();
+                    if (attendanceData.checkOutTime) {
+                        showStatus("Sudah Absen Pulang", studentData.name, "text-yellow-400", true);
+                        return;
+                    }
+
+                    let status = "Pulang";
+                    if (now < pulangMulai) status = "Pulang Cepat";
+                    else if (now >= pulangMulai && now <= pulangAkhir) status = "Pulang Tepat Waktu";
+
+                    await updateDoc(attendanceRef, { checkOutTime: Timestamp.fromDate(now), status: status });
+                    showStatus(status, studentData.name, "text-blue-400", true);
+                } else {
+                    let status = "Tepat Waktu";
+                    if (now < masukMulai) status = "Hadir Awal";
+                    else if (now >= masukMulai && now <= masukAkhir) status = "Tepat Waktu";
+                    else status = "Terlambat";
+
+                    await setDoc(attendanceRef, {
+                        studentId: studentId,
+                        studentName: studentData.name,
+                        classId: studentData.classId,
+                        checkInTime: Timestamp.fromDate(now),
+                        checkOutTime: null,
+                        status: status
+                    });
+                    showStatus(status, studentData.name, "text-green-400", true);
+                }
+            } catch (error) {
+                console.error("Error saat memproses pindaian:", error);
+                showStatus("Terjadi Kesalahan", "", "text-red-500", false);
+            } finally {
+                setTimeout(() => { isProcessingScan = false; }, 1000);
+            }
+        }
+    </script>
+</body>
+</html>
