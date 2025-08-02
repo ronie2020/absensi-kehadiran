@@ -53,36 +53,30 @@
         const db = getFirestore(app);
 
         // --- PERUBAHAN BARU: Definisikan Jadwal Absensi ---
-        const JADWAL_DEFAULT = {
-            masukMulai: { H: 6, M: 0 }, masukAkhir: { H: 7, M: 0 },
-            pulangMulai: { H: 14, M: 0 }, pulangAkhir: { H: 15, M: 0 }
-        };
-        const JADWAL_KAMIS = {
+         const JADWAL_DEFAULT = {
             masukMulai: { H: 6, M: 15 }, masukAkhir: { H: 7, M: 15 },
-            pulangMulai: { H: 14, M: 20 }, pulangAkhir: { H: 15, M: 0 }
+            pulangMulai: { H: 14, M: 20 }, pulangAkhir: { H: 16, M: 0 }
         };
         const JADWAL_JUMAT = {
             masukMulai: { H: 6, M: 15 }, masukAkhir: { H: 7, M: 15 },
-            pulangMulai: { H: 11, M: 0 }, pulangAkhir: { H: 12, M: 20 }
-        };
-        const CHECKOUT_GRACE_TIME = { H: 12, M: 0 };
+            pulangMulai: { H: 11, M: 20 }, pulangAkhir: { H: 12, M: 30 }
+        };        
+        const CHECKOUT_GRACE_TIME_DEFAULT = { H: 12, M: 0 };
+        const CHECKOUT_GRACE_TIME_JUMAT = { H: 11, M: 0 };
 
-        function getTodaySchedule() {
-            const todayWeekday = new Date().getDay(); // Minggu=0, Senin=1, ..., Sabtu=6
-            if (todayWeekday === 4) { // Hari Kamis
-                return JADWAL_KAMIS;
-            } else if (todayWeekday === 5) { // Hari Jumat
-                return JADWAL_JUMAT;
+             function getTodaySchedule() {
+            const todayWeekday = new Date().getDay(); // Minggu=0, Senin=1, ..., Jumat=5
+            if (todayWeekday === 5) { // Hari Jumat
+                return { schedule: JADWAL_JUMAT, graceTime: CHECKOUT_GRACE_TIME_JUMAT };
             } else {
-                return JADWAL_DEFAULT;
+                return { schedule: JADWAL_DEFAULT, graceTime: CHECKOUT_GRACE_TIME_DEFAULT };
             }
         }
 
         const statusMessage = document.getElementById('status-message');
         const studentNameDisplay = document.getElementById('student-name-display');
-        const audioOverlay = document.getElementById('audio-activation-overlay');
-        
-        // --- Membuat generator suara ---
+        const audioOverlay = document.getElementById('audio-activation-overlay');        
+ 
         const successSynth = new Tone.Synth().toDestination();
         const errorSynth = new Tone.Synth({
             oscillator: { type: 'square' },
@@ -94,7 +88,7 @@
         let barcodeBuffer = '';
         let lastKeystrokeTime = Date.now();
 
-        // --- PERUBAHAN BARU: Aktivasi audio dengan klik ---
+        // --- Aktivasi audio dengan klik ---
         audioOverlay.addEventListener('click', async () => {
             if (!audioStarted) {
                 await Tone.start();
@@ -102,16 +96,13 @@
                 console.log('Audio context started!');
                 audioOverlay.classList.add('hidden'); // Sembunyikan overlay setelah diklik
             }
-        }, { once: true }); // Hanya jalankan sekali
-
-        // --- Mendengarkan ketikan di seluruh halaman ---
+        }, { once: true }); 
+       
         document.addEventListener('keydown', (event) => {
-            const currentTime = Date.now();
-            
+            const currentTime = Date.now();            
             if (currentTime - lastKeystrokeTime > 100) {
                 barcodeBuffer = '';
             }
-
             if (event.key === 'Enter') {
                 if (barcodeBuffer.length > 0) {
                     processDailyAttendance(barcodeBuffer);
@@ -149,7 +140,8 @@
             isProcessingScan = true;
 
             try {
-                const jadwalHariIni = getTodaySchedule();
+               const { schedule, graceTime } = getTodaySchedule();
+
                 const studentRef = doc(db, "students", studentId);
                 const studentSnap = await getDoc(studentRef);
                 if (!studentSnap.exists()) {
@@ -164,17 +156,16 @@
                 const attendanceRef = doc(db, "attendance", attendanceId);
                 const attendanceSnap = await getDoc(attendanceRef);
 
-                  const masukMulai = new Date();
-                masukMulai.setHours(jadwalHariIni.masukMulai.H, jadwalHariIni.masukMulai.M, 0, 0);
+                const masukMulai = new Date();
+                masukMulai.setHours(schedule.masukMulai.H, schedule.masukMulai.M, 0, 0);
                 const masukAkhir = new Date();
-                masukAkhir.setHours(jadwalHariIni.masukAkhir.H, jadwalHariIni.masukAkhir.M, 0, 0);
+                masukAkhir.setHours(schedule.masukAkhir.H, schedule.masukAkhir.M, 0, 0);
                 const pulangMulai = new Date();
-                pulangMulai.setHours(jadwalHariIni.pulangMulai.H, jadwalHariIni.pulangMulai.M, 0, 0);
+                pulangMulai.setHours(schedule.pulangMulai.H, schedule.pulangMulai.M, 0, 0);
                 const pulangAkhir = new Date();
-                pulangAkhir.setHours(jadwalHariIni.pulangAkhir.H, jadwalHariIni.pulangAkhir.M, 0, 0);
+                pulangAkhir.setHours(schedule.pulangAkhir.H, schedule.pulangAkhir.M, 0, 0);
                 const checkoutGraceTime = new Date();
-                checkoutGraceTime.setHours(CHECKOUT_GRACE_TIME.H, CHECKOUT_GRACE_TIME.M, 0, 0);
-
+                checkoutGraceTime.setHours(graceTime.H, graceTime.M, 0, 0);
 
                 if (attendanceSnap.exists()) {
                     if (now < checkoutGraceTime) {
@@ -189,7 +180,7 @@
                     }
 
                     let status = "Pulang";
-                    if (now < pulangMulai) status = "Pulang Cepat";
+                    if (now < pulangMulai) status = "Bolos";
                     else if (now >= pulangMulai && now <= pulangAkhir) status = "Pulang Tepat Waktu";
 
                     await updateDoc(attendanceRef, { checkOutTime: Timestamp.fromDate(now), status: status });
@@ -197,8 +188,7 @@
                 } else {
                     let status = "Tepat Waktu";
                     if (now < masukMulai) status = "Hadir Awal";
-                    else if (now >= masukMulai && now <= masukAkhir) status = "Tepat Waktu";
-                    else status = "Terlambat";
+                    else if (now > masukAkhir) status = "Terlambat";
 
                     await setDoc(attendanceRef, {
                         studentId: studentId,

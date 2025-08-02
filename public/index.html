@@ -7,29 +7,25 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator/qrcode.js" type="text/javascript"></script>
-    <!-- Library untuk membaca file CSV (dari Excel) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        #reader { width: 100%; max-width: 500px; margin: auto; border-radius: 8px; overflow: hidden; border: 2px dashed #cbd5e1; }
+        #reader-harian { width: 100%; max-width: 500px; margin: auto; border-radius: 8px; overflow: hidden; border: 2px dashed #cbd5e1; }
         #html5-qrcode-button-camera-start, #html5-qrcode-button-camera-stop { background-color: #3b82f6; color: white; padding: 8px 16px; border-radius: 6px; font-weight: 500; margin-top: 10px; }
         #qrcode-container img { margin: auto; }
-        .tab-btn.active { background-color: #3b82f6; color: white; }
-        [data-role] { display: none; } /* Sembunyikan semua elemen role secara default */
+        .tab-btn.active { background-color: #3b82f6; color: white; border-color: #3b82f6;}
+        [data-role] { display: none; }
         .hidden { display: none; }
-        /* Style untuk tabel agar tidak terlalu rapat di layar kecil */
-        #student-table-container th, #student-table-container td {
-            padding: 8px 12px;
-        }
+        #student-table-container th, #student-table-container td { padding: 8px 12px; }
     </style>
 </head>
 <body class="bg-gray-100">
 
-    <!-- Halaman Login -->
-    <div id="login-page" class="flex items-center justify-center min-h-screen">
-        <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-            <h2 class="text-2xl font-bold text-center text-gray-900">Login Sistem Kehadiran</h2>
+     <!-- Halaman Login -->
+    <div id="login-page" class="flex items-center justify-center min-h-screen bg-gray-50">
+        <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-lg">
+            <h2 class="text-3xl font-bold text-center text-gray-900">Login Sistem Kehadiran</h2>
             <form id="login-form" class="space-y-6">
                 <div>
                     <label for="email" class="text-sm font-medium text-gray-700">Email</label>
@@ -39,135 +35,141 @@
                     <label for="password" class="text-sm font-medium text-gray-700">Password</label>
                     <input id="password" name="password" type="password" autocomplete="current-password" required class="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
-                <button type="submit" class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <button type="submit" class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
                     Login
                 </button>
-                <p id="login-error" class="text-sm text-red-600"></p>
+                <p id="login-error" class="text-sm text-center text-red-600"></p>
             </form>
         </div>
     </div>
 
-    <!-- Halaman Dashboard -->
+     <!-- Halaman Dashboard -->
     <div id="dashboard-page" class="hidden">
-         <header class="bg-white shadow-sm">
+        <header class="bg-white shadow-sm sticky top-0 z-40">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-                <!-- PERUBAHAN DI SINI: Membuat header responsif -->
-                <div class="flex flex-col md:flex-row items-center justify-between py-4 md:h-16 gap-4">
-                    <!-- Bagian Kiri: Judul dan Tombol Navigasi -->
+                <div class="flex flex-col md:flex-row items-center justify-between py-4 md:h-20 gap-4">
                     <div class="flex flex-col sm:flex-row items-center gap-4">
-                        <h1 class="text-xl font-bold text-blue-600 flex-shrink-0">Dashboard Utama</h1>
+                        <h1 class="text-2xl font-bold text-blue-600 flex-shrink-0">Dashboard Utama</h1>
                         <div class="flex items-center gap-2">
-                            <a href="./kegiatan.html" class="text-xs sm:text-sm font-medium text-white bg-green-600 px-3 py-2 rounded-md hover:bg-green-700 text-center">
+                            <a href="./kegiatan.html" class="text-xs sm:text-sm font-medium text-white bg-green-600 px-3 py-2 rounded-md hover:bg-green-700 text-center transition-colors">
                                 Absensi Keagamaan
                             </a>
-                            <a href="./kiosk_web.html" class="text-xs sm:text-sm font-medium text-white bg-gray-800 px-3 py-2 rounded-md hover:bg-gray-700 text-center">
+                            <a href="./kiosk_web.html" class="text-xs sm:text-sm font-medium text-white bg-gray-800 px-3 py-2 rounded-md hover:bg-gray-700 text-center transition-colors">
                                 Mode Kiosk Scanner
                             </a>
                         </div>
                     </div>
-                    <!-- Bagian Kanan: Info Pengguna dan Tombol Logout -->
                     <div class="flex items-center">
                         <div class="text-right mr-4">
                             <p id="user-name" class="text-sm font-medium text-gray-800">Nama Pengguna</p>
                             <p id="user-role" class="text-xs font-bold text-blue-500 uppercase">Role</p>
                         </div>
-                        <button id="logout-btn" class="px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 flex-shrink-0">Logout</button>
+                        <button id="logout-btn" class="px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 flex-shrink-0 transition-colors">Logout</button>
                     </div>
                 </div>
             </div>
         </header>
-        <main class="container mx-auto p-4 md:p-8">
-            <div class="flex flex-col lg:flex-row gap-8">
-                <!-- Kolom Kiri: Scanner & Log -->
-                <div data-role="guru_piket wali_kelas admin" class="w-full lg:w-1/2 bg-white p-6 rounded-lg shadow-md">
-                    <h2 class="text-2xl font-semibold mb-4 text-center">Pindai di Sini</h2>
-                    <div id="reader"></div>
-                    <div id="scan-result" class="mt-4 text-center font-medium"></div>
-                    <hr class="my-6">
-                    <h3 class="text-xl font-semibold mb-4">Log Kehadiran Hari Ini</h3>
-                    <div id="log-kehadiran" class="space-y-3 h-64 overflow-y-auto pr-2"><p class="text-gray-500">Memuat data...</p></div>
+        
+        <main class="container mx-auto p-4 md:p-8 space-y-8">
+                <!-- BAGIAN 1: SCANNER DAN LOG HARIAN -->
+                <div data-role="guru_piket wali_kelas admin" class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <!-- Kolom Scanner -->
+                        <div class="text-center space-y-4">
+                            <h2 class="text-2xl font-semibold">Pindai Absen Masuk/Pulang</h2>
+                            <div id="reader-harian"></div>
+                            <div id="scan-result-harian" class="mt-4 text-center font-medium min-h-[24px]"></div>
+                        </div>
+                        <!-- Kolom Log Harian -->
+                        <div>
+                            <h3 class="text-xl font-semibold mb-4">Log Kehadiran Hari Ini</h3>
+                            <div id="log-kehadiran" class="space-y-3 h-96 overflow-y-auto pr-2 border-t pt-4"></div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Kolom Kanan: Manajemen Siswa -->
-                <div data-role="wali_kelas admin" class="w-full lg:w-1/2 bg-white p-6 rounded-lg shadow-md">
+                <!-- BAGIAN 2: MANAJEMEN SISWA -->
+                <div data-role="wali_kelas admin" class="bg-white p-6 rounded-lg shadow-md">
                     <h2 class="text-2xl font-semibold mb-4">Manajemen Data Siswa</h2>
-                    <form id="form-tambah-siswa" class="space-y-4">
-                        <div>
-                            <label for="student-id" class="block text-sm font-medium text-gray-700">ID Siswa (Unik, misal: NISN)</label>
-                            <input type="text" id="student-id" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Kolom Tambah & Impor Siswa -->
+                        <div class="lg:col-span-1 space-y-6">
+                            <form id="form-tambah-siswa" class="space-y-4 p-4 border rounded-md bg-gray-50">
+                                <h3 class="font-medium text-lg">Tambah Siswa Baru</h3>
+                                <div>
+                                    <label for="student-id" class="block text-sm font-medium text-gray-700">ID Siswa (Unik, misal: NISN)</label>
+                                    <input type="text" id="student-id" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label for="student-name" class="block text-sm font-medium text-gray-700">Nama Lengkap Siswa</label>
+                                    <input type="text" id="student-name" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label for="student-rfid" class="block text-sm font-medium text-gray-700">ID Kartu RFID (Opsional)</label>
+                                    <input type="text" id="student-rfid" placeholder="Tempelkan kartu ke reader untuk ID" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div data-role="admin">
+                                    <label for="student-class" class="block text-sm font-medium text-gray-700">Kelas</label>
+                                    <input type="text" id="student-class" placeholder="Contoh: 7A" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label for="parent-wa" class="block text-sm font-medium text-gray-700">Nomor WA Orang Tua (Format: 62...)</label>
+                                    <input type="tel" id="parent-wa" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Tambah Siswa</button>
+                            </form>
+                            <div class="p-4 border rounded-md bg-gray-50">
+                                <h3 class="font-medium text-lg">Impor Data Siswa dari Excel (CSV)</h3>
+                                <p class="text-sm text-gray-600 mt-1">Unggah file CSV dengan kolom: `studentId`, `name`, `classId`, `parentWaNumber`, `rfidUid` (opsional).</p>
+                                <input type="file" id="csv-file-input" accept=".csv" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                <button id="import-csv-btn" class="mt-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Impor Data</button>
+                                <div id="import-status" class="text-sm mt-2"></div>
+                            </div>
                         </div>
-                        <div>
-                            <label for="student-name" class="block text-sm font-medium text-gray-700">Nama Lengkap Siswa</label>
-                            <input type="text" id="student-name" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <!-- Kolom Daftar Siswa -->
+                        <div class="lg:col-span-2">
+                            <h3 class="text-xl font-semibold mb-4">Daftar Siswa</h3>
+                            <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                                <input type="text" id="search-student-name" placeholder="Cari nama siswa..." class="flex-grow border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <select id="filter-student-class" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Semua Kelas</option>
+                                </select>
+                            </div>
+                            <div id="student-table-container" class="overflow-x-auto h-[40rem] border rounded-lg">
+                                <table class="w-full text-sm text-left text-gray-500">
+                                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+                                        <tr>
+                                            <th scope="col" class="py-3 px-6">Nama Siswa</th>
+                                            <th scope="col" class="py-3 px-6">Kelas</th>
+                                            <th scope="col" class="py-3 px-6">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="student-list-tbody"></tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div>
-                            <label for="student-rfid" class="block text-sm font-medium text-gray-700">ID Kartu RFID (Opsional)</label>
-                            <input type="text" id="student-rfid" placeholder="Tempelkan kartu ke reader untuk ID" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                         <div data-role="admin">
-                            <label for="student-class" class="block text-sm font-medium text-gray-700">Kelas</label>
-                            <input type="text" id="student-class" placeholder="Contoh: 7A" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label for="parent-wa" class="block text-sm font-medium text-gray-700">Nomor WA Orang Tua (Format: 62...)</label>
-                            <input type="tel" id="parent-wa" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Tambah Siswa</button>
-                    </form>
-                    <hr class="my-6">
-                    
-                    <div class="mb-6">
-                        <h3 class="text-lg font-medium text-gray-900">Impor Data Siswa dari Excel (CSV)</h3>
-                        <p class="text-sm text-gray-600 mt-1">Unggah file CSV dengan kolom: `studentId`, `name`, `classId`, `parentWaNumber`, `rfidUid` (opsional).</p>
-                        <input type="file" id="csv-file-input" accept=".csv" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                        <button id="import-csv-btn" class="mt-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Impor Data</button>
-                        <div id="import-status" class="text-sm mt-2"></div>
                     </div>
-                    <hr class="my-6">
+                </div>
 
-                    <h3 class="text-xl font-semibold mb-4">Daftar Siswa</h3>
-                    <div class="flex flex-col sm:flex-row gap-4 mb-4">
-                        <input type="text" id="search-student-name" placeholder="Cari nama siswa..." class="flex-grow border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <select id="filter-student-class" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Semua Kelas</option>
-                        </select>
+                <!-- BAGIAN 3: REKAP KEHADIRAN -->
+                <div data-role="kepala_sekolah wali_kelas admin" class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4">Rekap Kehadiran Harian</h2>
+                    <div class="flex border-b mb-4">
+                        <button id="tab-daily" class="tab-btn py-2 px-4 -mb-px border-b-2 font-medium text-gray-600 hover:bg-gray-100 rounded-t-md active">Harian</button>
+                        <button id="tab-weekly" class="tab-btn py-2 px-4 -mb-px border-b-2 border-transparent font-medium text-gray-600 hover:bg-gray-100 rounded-t-md">Mingguan</button>
+                        <button id="tab-monthly" class="tab-btn py-2 px-4 -mb-px border-b-2 border-transparent font-medium text-gray-600 hover:bg-gray-100 rounded-t-md">Bulanan</button>
                     </div>
-                    <div id="student-table-container" class="overflow-x-auto h-64">
-                        <table class="w-full text-sm text-left text-gray-500">
-                            <thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0">
-                                <tr>
-                                    <th scope="col" class="py-3 px-6">Nama Siswa</th>
-                                    <th scope="col" class="py-3 px-6">Kelas</th>
-                                    <th scope="col" class="py-3 px-6">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="student-list-tbody">
-                                <!-- Data siswa akan dimuat di sini -->
-                            </tbody>
-                        </table>
+                    <div id="filters" class="flex items-center flex-wrap gap-4 p-4 bg-gray-50 rounded-md">
+                        <div id="filter-daily"><input type="date" id="date-input" class="border rounded px-2 py-1"></div>
+                        <div id="filter-weekly" class="hidden"><input type="week" id="week-input" class="border rounded px-2 py-1"></div>
+                        <div id="filter-monthly" class="hidden"><input type="month" id="month-input" class="border rounded px-2 py-1"></div>
+                        <button id="show-report-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">Tampilkan Rekap</button>
+                    </div>
+                    <div class="mt-6">
+                        <button id="export-csv-btn" class="hidden bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg mb-4 transition-colors">Ekspor ke CSV</button>
+                        <div id="report-results" class="overflow-x-auto"><p class="text-gray-500 text-center py-4">Pilih periode dan klik "Tampilkan Rekap".</p></div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Rekap Kehadiran -->
-            <div data-role="kepala_sekolah wali_kelas admin" class="mt-8 bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-2xl font-semibold mb-4">Rekap Kehadiran</h2>
-                <div class="flex border-b mb-4">
-                    <button id="tab-daily" class="tab-btn py-2 px-4 font-medium text-gray-600 hover:bg-blue-100 rounded-t-md active">Harian</button>
-                    <button id="tab-weekly" class="tab-btn py-2 px-4 font-medium text-gray-600 hover:bg-blue-100 rounded-t-md">Mingguan</button>
-                    <button id="tab-monthly" class="tab-btn py-2 px-4 font-medium text-gray-600 hover:bg-blue-100 rounded-t-md">Bulanan</button>
-                </div>
-                <div id="filters" class="flex items-center flex-wrap gap-4">
-                    <div id="filter-daily"><input type="date" id="date-input" class="border rounded px-2 py-1"></div>
-                    <div id="filter-weekly" class="hidden"><input type="week" id="week-input" class="border rounded px-2 py-1"></div>
-                    <div id="filter-monthly" class="hidden"><input type="month" id="month-input" class="border rounded px-2 py-1"></div>
-                    <button id="show-report-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Tampilkan Rekap</button>
-                </div>
-                <div class="mt-6">
-                    <button id="export-csv-btn" class="hidden bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg mb-4">Ekspor ke CSV</button>
-                    <div id="report-results" class="overflow-x-auto"><p class="text-gray-500">Pilih periode dan klik "Tampilkan Rekap".</p></div>
-                </div>
-            </div>
         </main>
     </div>
     
@@ -253,28 +255,23 @@
             masukMulai: { H: 6, M: 15 }, masukAkhir: { H: 7, M: 15 },
             pulangMulai: { H: 14, M: 20 }, pulangAkhir: { H: 16, M: 0 }
         };
-        const JADWAL_KAMIS = {
-            masukMulai: { H: 6, M: 15 }, masukAkhir: { H: 7, M: 15 },
-            pulangMulai: { H: 14, M: 20 }, pulangAkhir: { H: 16, M: 0 }
-        };
         const JADWAL_JUMAT = {
             masukMulai: { H: 6, M: 15 }, masukAkhir: { H: 7, M: 15 },
-            pulangMulai: { H: 11, M: 0 }, pulangAkhir: { H: 12, M: 20 }
-        };
-        const CHECKOUT_GRACE_TIME = { H: 12, M: 0 };
+            pulangMulai: { H: 11, M: 20 }, pulangAkhir: { H: 12, M: 30 }
+        };        
+        const CHECKOUT_GRACE_TIME_DEFAULT = { H: 12, M: 0 };
+        const CHECKOUT_GRACE_TIME_JUMAT = { H: 11, M: 0 };
 
-          function getTodaySchedule() {
-            const todayWeekday = new Date().getDay(); // Minggu=0, Senin=1, ..., Sabtu=6
-            if (todayWeekday === 4) { // Hari Kamis
-                return JADWAL_KAMIS;
-            } else if (todayWeekday === 5) { // Hari Jumat
-                return JADWAL_JUMAT;
+             function getTodaySchedule() {
+            const todayWeekday = new Date().getDay(); // Minggu=0, Senin=1, ..., Jumat=5
+            if (todayWeekday === 5) { // Hari Jumat
+                return { schedule: JADWAL_JUMAT, graceTime: CHECKOUT_GRACE_TIME_JUMAT };
             } else {
-                return JADWAL_DEFAULT;
+                return { schedule: JADWAL_DEFAULT, graceTime: CHECKOUT_GRACE_TIME_DEFAULT };
             }
         }
 
-        // Variabel Global & Elemen UI
+   // Variabel Global & Elemen UI
         let currentUserData = null;
         let html5QrcodeScanner;
         let isProcessingScan = false;
@@ -328,7 +325,7 @@
                     // Inisialisasi komponen dashboard
                     if (['admin', 'wali_kelas', 'guru_piket'].includes(currentUserData.role)) {
                         if (!html5QrcodeScanner || !html5QrcodeScanner.isScanning) {
-                            html5QrcodeScanner = new Html5Qrcode("reader");
+                            html5QrcodeScanner = new Html5Qrcode("reader-harian");
                             const config = { fps: 10, qrbox: { width: 250, height: 250 } };
                             html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
                         }
@@ -531,46 +528,49 @@
         async function onScanSuccess(decodedText) {
             if (isProcessingScan) return;
             isProcessingScan = true;
-            const resultDiv = document.getElementById('scan-result');
+            const resultDiv = document.getElementById('scan-result-harian');
             resultDiv.textContent = `Memproses ID: ${decodedText}...`;
             try {
-                
-                const jadwalHariIni = getTodaySchedule();
+                const { schedule, graceTime } = getTodaySchedule();
+
                 const studentRef = doc(db, "students", decodedText);
                 const studentSnap = await getDoc(studentRef);
                 if (!studentSnap.exists()) {
                     resultDiv.textContent = `Error: Siswa dengan ID ${decodedText} tidak ditemukan.`; return;
                 }
                 const studentData = studentSnap.data();
-
+                
                 const now = new Date();
                 const todayStr = now.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
                 const attendanceId = `${decodedText}_${todayStr}`;
                 const attendanceRef = doc(db, "attendance", attendanceId);
                 const attendanceSnap = await getDoc(attendanceRef);
-                
+
                 const masukMulai = new Date();
-                masukMulai.setHours(jadwalHariIni.masukMulai.H, jadwalHariIni.masukMulai.M, 0, 0);
+                masukMulai.setHours(schedule.masukMulai.H, schedule.masukMulai.M, 0, 0);
                 const masukAkhir = new Date();
-                masukAkhir.setHours(jadwalHariIni.masukAkhir.H, jadwalHariIni.masukAkhir.M, 0, 0);
+                masukAkhir.setHours(schedule.masukAkhir.H, schedule.masukAkhir.M, 0, 0);
                 const pulangMulai = new Date();
-                pulangMulai.setHours(jadwalHariIni.pulangMulai.H, jadwalHariIni.pulangMulai.M, 0, 0);
+                pulangMulai.setHours(schedule.pulangMulai.H, schedule.pulangMulai.M, 0, 0);
                 const pulangAkhir = new Date();
-                pulangAkhir.setHours(jadwalHariIni.pulangAkhir.H, jadwalHariIni.pulangAkhir.M, 0, 0);
+                pulangAkhir.setHours(schedule.pulangAkhir.H, schedule.pulangAkhir.M, 0, 0);
                 const checkoutGraceTime = new Date();
-                checkoutGraceTime.setHours(CHECKOUT_GRACE_TIME.H, CHECKOUT_GRACE_TIME.M, 0, 0);
+                checkoutGraceTime.setHours(graceTime.H, graceTime.M, 0, 0);
 
                 if (attendanceSnap.exists()) {
                     if (now < checkoutGraceTime) {
                         resultDiv.textContent = `${studentData.name} sudah tercatat hadir hari ini.`;
                         return;
                     }
+                    
                     const attendanceData = attendanceSnap.data();
                     if (attendanceData.checkOutTime) {
                         resultDiv.textContent = `${studentData.name} sudah absen masuk dan pulang hari ini.`; return;
                     }
+
                     let status = "Pulang";
-                    if (now < pulangMulai) status = "Pulang Cepat";
+                    if (now < pulangMulai) status = "Pulang Awal";
+                    else if (now > pulangAkhir) status = "Pulang Cepat";
                     else if (now >= pulangMulai && now <= pulangAkhir) status = "Pulang Tepat Waktu";
 
                     await updateDoc(attendanceRef, { checkOutTime: Timestamp.fromDate(now), status: status });
@@ -628,7 +628,7 @@
                         bgColor = 'bg-orange-100'; textColor = 'text-orange-800';
                     } else if (status.includes("Pulang")) {
                         bgColor = 'bg-blue-100'; textColor = 'text-blue-800';
-                    } else if (status.includes("Bolos")) {
+                    } else if (status.includes("Pulang Cepat")) {
                         bgColor = 'bg-red-100'; textColor = 'text-red-800';
                     }
                     const div = document.createElement('div');

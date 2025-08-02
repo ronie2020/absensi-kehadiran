@@ -24,7 +24,7 @@
 </head>
 <body class="text-gray-800">
 
-    <div class="container mx-auto p-4 md:p-8">
+     <div class="container mx-auto p-4 md:p-8">
         <!-- Header Halaman -->
         <header class="text-center mb-10">
             <h1 id="school-name" class="text-4xl md:text-5xl font-extrabold text-blue-600">Memuat Nama Sekolah...</h1>
@@ -34,7 +34,7 @@
         </header>
 
         <!-- Kartu Rekapitulasi -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             <div class="card p-6 flex flex-col items-center justify-center text-center">
                 <h2 class="text-lg font-bold text-gray-500 uppercase tracking-wider">Total Siswa</h2>
                 <p id="total-students" class="text-5xl font-bold text-gray-800 mt-2">0</p>
@@ -43,20 +43,31 @@
                 <h2 class="text-lg font-bold text-green-600 uppercase tracking-wider">Sudah Hadir</h2>
                 <p id="total-checked-in" class="text-5xl font-bold text-green-700 mt-2">0</p>
             </div>
-            <div class="card p-6 flex flex-col items-center justify-center text-center bg-blue-50">
-                <h2 class="text-lg font-bold text-blue-600 uppercase tracking-wider">Sudah Pulang</h2>
-                <p id="total-checked-out" class="text-5xl font-bold text-blue-700 mt-2">0</p>
+            <div class="card p-6 flex flex-col items-center justify-center text-center bg-red-50">
+                <h2 class="text-lg font-bold text-red-600 uppercase tracking-wider">Belum Hadir</h2>
+                <p id="total-absent" class="text-5xl font-bold text-red-700 mt-2">0</p>
             </div>
         </div>
 
-        <!-- Log Aktivitas Terkini -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-bold mb-4">Aktivitas Terkini</h2>
-            <div id="live-log" class="space-y-3">
-                <p class="text-gray-500">Memuat aktivitas terkini...</p>
-                <!-- Log akan muncul di sini -->
+        <!-- Log Aktivitas & Rekap Per Kelas -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Kolom Aktivitas Terkini -->
+            <div class="lg:col-span-1 bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">Aktivitas Terkini</h2>
+                <div id="live-log" class="space-y-3 h-[40rem] overflow-y-auto">
+                    <p class="text-gray-500">Memuat aktivitas terkini...</p>
+                </div>
+            </div>
+
+            <!-- Kolom Rekap Per Kelas -->
+            <div class="lg:col-span-2 bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">Rekapitulasi Per Kelas</h2>
+                <div id="class-summary-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[40rem] overflow-y-auto">
+                    <p class="text-gray-500">Memuat rekap kelas...</p>
+                </div>
             </div>
         </div>
+
 
         <footer class="text-center mt-10">
             <a href="./index.html" class="inline-block bg-blue-600 text-white font-bold text-lg py-3 px-8 rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300">
@@ -66,88 +77,95 @@
     </div>
 
     <script type="module">
-        // Impor fungsi yang diperlukan dari Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, doc, getDoc, onSnapshot, query, where, Timestamp, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, getDoc, query, where, Timestamp, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-         // Konfigurasi Firebase 
         const firebaseConfig = {
             apiKey: "AIzaSyBVHH_93naVVAbPgW1eNqUVdiKGTEo2lVE",
             authDomain: "sistem-kehadiran-sekolah.firebaseapp.com",
             projectId: "sistem-kehadiran-sekolah",
-            storageBucket: "sistem-kehadiran-sekolah.appspot.com",
+            storageBucket: "sistem-kehadiran-sekolah.firebasestorage.app",
             messagingSenderId: "442792334277",
             appId: "1:442792334277:web:fc4b5305495af6458931ac",
             measurementId: "G-4WKLJS974P"
         };
 
-        // Inisialisasi
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Fungsi untuk memformat waktu
         const formatTime = (timestamp) => timestamp ? timestamp.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '---';
 
-        // 1. Ambil Pengaturan Sekolah (hanya sekali)
         async function fetchSchoolSettings() {
-            const settingsRef = doc(db, "settings", "schoolInfo");
-            const settingsSnap = await getDoc(settingsRef);
-            if (settingsSnap.exists()) {
-                const settings = settingsSnap.data();
-                document.getElementById('school-name').textContent = settings.schoolName || "Nama Sekolah";
-                document.getElementById('welcome-message').textContent = settings.welcomeMessage || "Selamat Datang";
-            } else {
-                console.log("Dokumen pengaturan tidak ditemukan!");
+            try {
+                const settingsRef = doc(db, "settings", "schoolInfo");
+                const settingsSnap = await getDoc(settingsRef);
+                if (settingsSnap.exists()) {
+                    const settings = settingsSnap.data();
+                    document.getElementById('school-name').textContent = settings.schoolName || "Nama Sekolah";
+                    document.getElementById('welcome-message').textContent = settings.welcomeMessage || "Selamat Datang";
+                } else {
+                    console.log("Dokumen pengaturan tidak ditemukan!");
+                }
+            } catch (error) {
+                console.error("Gagal mengambil pengaturan sekolah:", error);
             }
         }
 
-        // 2. FUNGSI BARU: Ambil data kehadiran sekali jalan
-        async function fetchAttendanceData() {
-            console.log("Mengambil data kehadiran terbaru...");
-            const today = new Date();
-            const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-            const endOfToday = new Date(today.setHours(23, 59, 59, 999));
+        async function fetchDataAndRender() {
+            console.log("Mengambil semua data terbaru...");
+            try {
+                const today = new Date();
+                const startOfToday = new Date(new Date().setHours(0, 0, 0, 0));
+                const endOfToday = new Date(new Date().setHours(23, 59, 59, 999));
+                document.getElementById('current-date').textContent = startOfToday.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+                const studentsQuery = query(collection(db, "students"));
+                const attendanceQuery = query(collection(db, "attendance"), 
+                    where("checkInTime", ">=", Timestamp.fromDate(startOfToday)),
+                    where("checkInTime", "<=", Timestamp.fromDate(endOfToday))
+                );
+
+                const [studentsSnapshot, attendanceSnapshot] = await Promise.all([
+                    getDocs(studentsQuery),
+                    getDocs(attendanceQuery)
+                ]);
+
+                const allStudents = studentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const todayAttendance = attendanceSnapshot.docs.map(doc => doc.data());
+
+                renderTopCards(allStudents, todayAttendance);
+                renderLiveLog(todayAttendance);
+                renderClassSummary(allStudents, todayAttendance);
+
+            } catch (error) {
+                console.error("Gagal mengambil data:", error);
+                document.getElementById('live-log').innerHTML = '<p class="text-red-500">Gagal memuat data. Kuota mungkin telah terlampaui.</p>';
+                document.getElementById('class-summary-container').innerHTML = '<p class="text-red-500">Gagal memuat rekap.</p>';
+            }
+        }
+
+        function renderTopCards(allStudents, todayAttendance) {
+            const totalStudents = allStudents.length;
+            const checkedInCount = todayAttendance.length;
             
-            document.getElementById('current-date').textContent = startOfToday.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('total-students').textContent = totalStudents;
+            document.getElementById('total-checked-in').textContent = checkedInCount;
+            document.getElementById('total-absent').textContent = totalStudents - checkedInCount;
+        }
 
-            const q = query(collection(db, "attendance"), 
-                where("checkInTime", ">=", Timestamp.fromDate(startOfToday)),
-                where("checkInTime", "<=", Timestamp.fromDate(endOfToday))
-            );
-
-            const snapshot = await getDocs(q); // Menggunakan getDocs, bukan onSnapshot
-
+        function renderLiveLog(todayAttendance) {
             const liveLogContainer = document.getElementById('live-log');
             liveLogContainer.innerHTML = '';
-
-            if (snapshot.empty) {
+            if (todayAttendance.length === 0) {
                 liveLogContainer.innerHTML = '<p class="text-gray-500">Belum ada aktivitas hari ini.</p>';
-                document.getElementById('total-checked-in').textContent = '0';
-                document.getElementById('total-checked-out').textContent = '0';
                 return;
             }
-            
-            let checkedInCount = 0;
-            let checkedOutCount = 0;
-            const allLogs = snapshot.docs.map(doc => doc.data());
-
-            allLogs.forEach(log => {
-                checkedInCount++;
-                if (log.checkOutTime) {
-                    checkedOutCount++;
-                }
-            });
-
-            document.getElementById('total-checked-in').textContent = checkedInCount;
-            document.getElementById('total-checked-out').textContent = checkedOutCount;
-
-            const sortedLogs = allLogs.sort((a, b) => {
+            const sortedLogs = [...todayAttendance].sort((a, b) => {
                 const timeA = a.checkOutTime || a.checkInTime;
                 const timeB = b.checkOutTime || b.checkInTime;
-                return timeB - timeA;
+                return timeB.seconds - timeA.seconds;
             });
-
-            sortedLogs.slice(0, 10).forEach(log => {
+            sortedLogs.slice(0, 15).forEach(log => {
                 const timeToDisplay = log.checkOutTime ? formatTime(log.checkOutTime) : formatTime(log.checkInTime);
                 let status = log.status || (log.checkOutTime ? 'Pulang' : 'Masuk');
                 let bgColor = 'bg-gray-50';
@@ -159,7 +177,7 @@
                     bgColor = 'bg-orange-50'; textColor = 'text-orange-700';
                 } else if (status.includes("Pulang")) {
                     bgColor = 'bg-blue-50'; textColor = 'text-blue-700';
-                } else if (status.includes("Bolos")) {
+                } else if (status.includes("Pulang Cepat")) {
                     bgColor = 'bg-red-50'; textColor = 'text-red-700';
                 }
 
@@ -178,15 +196,57 @@
                 liveLogContainer.appendChild(div);
             });
         }
-        
-        // 3. Ambil Total Siswa (cukup sekali)
-        async function fetchTotalStudents() {
-            const q = query(collection(db, "students"));
-            const snapshot = await getDocs(q); // Menggunakan getDocs
-            document.getElementById('total-students').textContent = snapshot.size;
+
+        function renderClassSummary(allStudents, todayAttendance) {
+            const summaryContainer = document.getElementById('class-summary-container');
+            summaryContainer.innerHTML = '';
+
+            const presentStudentIds = new Set(todayAttendance.map(log => log.studentId));
+            
+            const classes = allStudents.reduce((acc, student) => {
+                const classId = student.classId || 'Tanpa Kelas';
+                if (!acc[classId]) {
+                    acc[classId] = [];
+                }
+                acc[classId].push(student);
+                return acc;
+            }, {});
+
+            const sortedClassIds = Object.keys(classes).sort();
+
+            if (sortedClassIds.length === 0) {
+                summaryContainer.innerHTML = '<p class="text-gray-500">Belum ada data kelas.</p>';
+                return;
+            }
+
+            sortedClassIds.forEach(classId => {
+                const studentsInClass = classes[classId];
+                const absentStudents = studentsInClass.filter(student => !presentStudentIds.has(student.id));
+                const presentCount = studentsInClass.length - absentStudents.length;
+
+                const card = document.createElement('div');
+                card.className = 'border rounded-lg p-4 bg-gray-50 space-y-2';
+                
+                let absentListHtml = absentStudents.length > 0
+                    ? absentStudents.map(s => `<li class="text-sm text-gray-600">${s.name}</li>`).join('')
+                    : '<li class="text-sm text-green-600">Semua siswa hadir.</li>';
+
+                card.innerHTML = `
+                    <h3 class="font-bold text-lg text-gray-800">${classId}</h3>
+                    <div class="flex justify-between text-sm">
+                        <span class="font-medium text-green-600">Hadir: ${presentCount}</span>
+                        <span class="font-medium text-red-600">Belum Hadir: ${absentStudents.length}</span>
+                    </div>
+                    <div class="border-t pt-2">
+                        <h4 class="font-semibold text-xs text-gray-500 uppercase">Siswa Belum Hadir:</h4>
+                        <ul class="list-disc list-inside mt-1">${absentListHtml}</ul>
+                    </div>
+                `;
+                summaryContainer.appendChild(card);
+            });
         }
 
-        // 4. Jam Digital
+        // FUNGSI BARU YANG DITAMBAHKAN KEMBALI
         function startDigitalClock() {
             const clockElement = document.getElementById('digital-clock');
             if (!clockElement) return;
@@ -203,12 +263,11 @@
 
         // Jalankan semua fungsi
         fetchSchoolSettings();
-        fetchTotalStudents();
-        fetchAttendanceData(); // Panggil sekali saat halaman dimuat
-        startDigitalClock();
+        fetchDataAndRender();
+        startDigitalClock(); // Panggil jam digital
 
-        // Atur interval untuk mengambil data ulang setiap 2 menit (120000 milidetik)
-        setInterval(fetchAttendanceData, 120000);
+        // Atur interval untuk mengambil data ulang setiap 2 menit
+        setInterval(fetchDataAndRender, 120000);
 
     </script>
 </body>
